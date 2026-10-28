@@ -5,7 +5,7 @@
     "update_url": null
   },
   "name": "DeadPoly",
-  "author": "Azzy-tm",
+  "author": "34712670+Azzy-tm@users.noreply.github.com",
   "description": "DeadPoly Windows dedicated server (Steam app 2208380), installed with SteamCMD and run through Wine. Includes optional update monitoring, automatic restarts, whitelist/blacklist support, and a future-proof mods folder. Egg version: 1.0.0.",
   "features": null,
   "docker_images": {
