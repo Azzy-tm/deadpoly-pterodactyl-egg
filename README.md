@@ -3,6 +3,7 @@
 ![Release](https://img.shields.io/github/v/release/Azzy-tm/deadpoly-pterodactyl-egg?style=flat&label=Release)
 ![Downloads](https://img.shields.io/github/downloads/Azzy-tm/deadpoly-pterodactyl-egg/total?style=flat&label=Downloads)
 ![License](https://img.shields.io/github/license/Azzy-tm/deadpoly-pterodactyl-egg?style=flat&label=License)
+![Game](https://img.shields.io/badge/DeadPoly-Wine-red?style=flat)
 
 Hosts the Windows DeadPoly dedicated server through Wine on a Linux Pterodactyl node.
 
