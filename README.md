@@ -3,23 +3,16 @@
 ![Release](https://img.shields.io/github/v/release/Azzy-tm/deadpoly-pterodactyl-egg?style=flat&label=Release)
 ![Downloads](https://img.shields.io/github/downloads/Azzy-tm/deadpoly-pterodactyl-egg/total?style=flat&label=Downloads)
 ![License](https://img.shields.io/github/license/Azzy-tm/deadpoly-pterodactyl-egg?style=flat&label=License)
-![Pterodactyl](https://img.shields.io/badge/Pterodactyl-2.x-blue?style=flat)
 ![Game](https://img.shields.io/badge/DeadPoly-Wine-red?style=flat)
 
-A Pterodactyl egg for hosting the **DeadPoly** Windows dedicated server through **Wine**.
+A Pterodactyl egg for hosting the **DeadPoly** Windows dedicated server through **Wine** on a Linux node.
 
-- **Egg version:** `1.0.0` (Initial release)
+- **Egg version:** `2.0.0`
 - **Maintainer:** [Azzy-tm](https://github.com/Azzy-tm)
 - **Steam App ID:** `2208380`
-- **Server executable:** `DeadPolyServer.exe`
-- **Runtime:** Wine via `ghcr.io/parkervcp/yolks:wine_staging`
-- **Pterodactyl schema:** `PTDL_v2`
-
-## Compatibility
-
-This egg is made for **Pterodactyl 2.x**. It will likely work on Pterodactyl 1.x as well because it uses the `PTDL_v2` egg format, but v1 compatibility has not been formally tested.
-
-If you try it on Pterodactyl 1.x, please report back whether installation, startup, and update monitoring work correctly.
+- **Server executable:** `DeadPoly/Binaries/Win64/DeadPolyServer.exe`
+- **Runtime image:** `ghcr.io/parkervcp/yolks:wine_staging`
+- **Egg schema:** `PTDL_v2`
 
 ## Repository
 
@@ -27,307 +20,221 @@ If you try it on Pterodactyl 1.x, please report back whether installation, start
 - **Issues:** https://github.com/Azzy-tm/deadpoly-pterodactyl-egg/issues
 - **Egg download:** https://raw.githubusercontent.com/Azzy-tm/deadpoly-pterodactyl-egg/main/deadpoly-egg.json
 
+## Compatibility and testing
+
+This egg targets a Linux Pterodactyl node running Docker and the Wine Staging image. It is not a native Windows-host installer.
+
+During testing on the maintainer's Ubuntu node, the egg installed the Windows server files, launched the nested executable through Wine, created an online session, bound UDP 7777, allowed a player to connect and play, and was detected by Pterodactyl as running.
+
+External router access, long-term save persistence, and a complete fresh-install regression pass still require additional testing.
+
+## Hardware requirements
+
+| Resource | Minimum | Recommended |
+|---|---:|---:|
+| CPU cores | 2 | 4 |
+| RAM | 6 GB | 8 GB or more |
+| Disk | Enough for Steam server files, the Wine prefix, logs, and saves | SSD strongly recommended |
+
+- **2 CPU cores** are enough for a small server or light usage.
+- **4 CPU cores** are recommended for more players or heavier world activity.
+- The dedicated server was observed using approximately **5.1 GB RAM with no players connected**, so **6 GB RAM is the practical minimum**.
+- Allocate **8 GB or more** for multiple players, frequent saves, additional services on the same host, or headroom during updates.
+
 ## Features
 
-- Installs the official DeadPoly dedicated server using SteamCMD.
-- Runs the Windows server binary under Wine.
-- Automatically stages DeadPoly's shipped configuration template.
-- Manages server name, player limit, private mode, admins, and allow-list IDs.
-- Includes a manual blacklist field for banned Trust-menu IDs.
-- Optional Steam update checking, with a configurable interval that defaults to 60 minutes.
-- Optional automatic Pterodactyl restart when a new Steam build is detected.
-- Future-proof `mods/` folder.
-- Optional mod ZIP download and extraction.
-- Clear placeholders for settings that DeadPoly does not currently support.
+- Installs the official DeadPoly Windows dedicated server using anonymous SteamCMD.
+- Launches `DeadPoly/Binaries/Win64/DeadPolyServer.exe` directly through Wine.
+- Runs the Windows-specific SteamCMD update and validation before launch when enabled.
+- Stages DeadPoly's shipped configuration template without overwriting existing files.
+- Captures Wine output in `wine-output.log`.
+- Forwards selected lines from `DeadPoly/Saved/Logs/DeadPoly.log` to the Pterodactyl console.
+- Detects server readiness using the successful session-creation message.
 
-## Requirements
-
-- Pterodactyl Panel 2.x with Wings.
-- A node able to pull `ghcr.io/parkervcp/yolks:wine_staging`.
-- At least **4–6 GB RAM** recommended for the server.
-- At least **5 GB** of disk space; **10 GB or more** is recommended once saves, logs, backups, and future mods are considered.
-- Two port allocations:
-  - Primary game port: `7777` UDP by default.
-  - Query port: `7778` TCP/UDP by default.
-
-## Installation
-
-1. In the Pterodactyl Admin Area, go to **Nests**.
-2. Create or select a nest for DeadPoly.
-3. Choose **Add Egg** and then **Import Egg**.
-4. Upload `deadpoly-egg.json`.
-5. Create a new server using the **DeadPoly** egg and the **Wine Staging** Docker image.
-6. Allocate the game port and query port.
-7. Start the server to run the installation.
-8. After the first installation completes, stop the server and review `DeadPoly/Saved/Config/WindowsServer/Game.ini`.
-9. Set your admin and allow-list IDs, then start the server again.
+This egg does not automatically rewrite INI files, monitor for updates while running, trigger API restarts, install mods, or manage blacklists. Server name, player limits, private mode, admins, allow lists, and bans must be configured manually.
 
 ## Download on Linux / Ubuntu
 
 ### Option 1: Download only the egg file
 
-Install `curl` and `jq` if they are not already installed:
+Install `curl` and `jq`:
 
 ```bash
 sudo apt update
 sudo apt install -y curl jq
 ```
 
-Download the egg JSON:
+Download the egg:
 
 ```bash
 curl -fL -o deadpoly-egg.json \
   https://raw.githubusercontent.com/Azzy-tm/deadpoly-pterodactyl-egg/main/deadpoly-egg.json
 ```
 
-Verify that the downloaded file is valid Pterodactyl egg JSON:
+Verify the JSON and egg-format marker:
 
 ```bash
-jq -e '.meta.version == "PTDL_v2"' deadpoly-egg.json
+jq -e 'type == "object" and .meta.version == "PTDL_v2"' deadpoly-egg.json
 ```
 
-If the command prints:
+Expected output:
 
 ```text
 true
 ```
 
-the file downloaded correctly. You can then upload `deadpoly-egg.json` through **Admin Area → Nests → Add Egg → Import Egg**.
+This check confirms valid JSON and the egg-format marker. It is not a complete Pterodactyl panel-schema validation or proof of runtime compatibility.
 
-### Option 2: Clone the full repository
-
-Install Git if it is not already installed:
+### Option 2: Clone the repository
 
 ```bash
 sudo apt update
 sudo apt install -y git
-```
-
-Clone the repository:
-
-```bash
 git clone https://github.com/Azzy-tm/deadpoly-pterodactyl-egg.git
 cd deadpoly-pterodactyl-egg
 ```
 
-The egg file is located at:
-
-```text
-deadpoly-egg.json
-```
-
-To get future updates later, run:
+The egg file is `deadpoly-egg.json`. To update an unmodified clone later:
 
 ```bash
-git pull
+git pull --ff-only
 ```
 
-### Option 3: Download the latest release
+Preserve local changes before updating.
 
-Install `curl` and `jq` if they are not already installed:
+### Option 3: Download the latest release
 
 ```bash
 sudo apt update
 sudo apt install -y curl jq
-```
-
-Download the latest published egg file:
-
-```bash
 curl -fL -o deadpoly-egg.json \
   https://github.com/Azzy-tm/deadpoly-pterodactyl-egg/releases/latest/download/deadpoly-egg.json
+jq -e 'type == "object" and .meta.version == "PTDL_v2"' deadpoly-egg.json
 ```
 
-Verify that the downloaded file is valid Pterodactyl egg JSON:
-
-```bash
-jq -e '.meta.version == "PTDL_v2"' deadpoly-egg.json
-```
-
-If the command prints:
+Expected output:
 
 ```text
 true
 ```
 
-the file downloaded correctly. You can then upload `deadpoly-egg.json` through **Admin Area → Nests → Add Egg → Import Egg**.
+## Installation
 
-## Startup variables
+1. In the Pterodactyl Admin Area, open **Nests**.
+2. Create or select a nest for DeadPoly.
+3. Choose **Add Egg**, then **Import Egg**.
+4. Upload `deadpoly-egg.json`.
+5. Create a server using the **DeadPoly** egg and the **Wine Staging** Docker image.
+6. Assign at least **2 CPU cores** and **6 GB RAM**. Use **4 cores** and **8 GB or more** for larger player counts.
+7. Assign a primary game allocation. The default game port is UDP `7777`.
+8. Set `AUTO_UPDATE=0` and `DEADPOLY_AUTO_UPDATE=true`.
+9. Start the server and allow installation to finish.
+10. Review the generated configuration, test joining, and configure access control before opening the server to other players.
 
-| Variable | Default | Editable | Description |
-|---|---:|---:|---|
-| `SERVER_NAME` | `DeadPoly Server` | Yes | Name shown in the server browser. |
-| `MAX_PLAYERS` | `16` | Yes | Maximum simultaneous players. |
-| `QUERY_PORT` | `7778` | Yes | Secondary query/info port. |
-| `PRIVATE` | `False` | Yes | Restricts joining to allowed IDs. |
-| `ADMIN_IDS` | empty | Yes | Comma-separated Trust-menu IDs with admin access. |
-| `ALLOWED_IDS` | empty | Yes | Comma-separated Trust-menu IDs allowed to join a private server. |
-| `BLACKLIST_IDS` | empty | Yes | Comma-separated Trust-menu IDs to blacklist. Managed manually; see Blacklists below. |
-| `EXTRA_ARGS` | empty | Yes | Optional extra DeadPolyServer.exe launch arguments. |
-| `AUTO_UPDATE` | `true` | Yes | Runs SteamCMD validation/update on every startup. |
-| `AUTO_UPDATE_CHECK` | `true` | Yes | Checks Steam for newer server builds while running. |
-| `UPDATE_CHECK_INTERVAL` | `60` | Yes | Minutes between update checks. |
-| `PANEL_URL` | empty | Yes | Panel base URL used for automatic restarts. |
-| `PTERO_API_KEY` | empty | Yes | Client API key with Control permission. |
-| `MODS_URL` | empty | Yes | Direct URL to a `.zip` containing mod files. |
-| `MODS_AUTO_EXTRACT` | `false` | Yes | Extracts `MODS_URL` into `mods/` during installation. |
-| `STEAM_WORKSHOP_MODS` | `Currently unavailable` | No | Placeholder; Workshop server mods are not supported yet. |
-| `ZOMBIE_SPAWN_RATE` | `Currently unavailable` | No | Placeholder; not configurable through DeadPoly server INI settings. |
-| `LOOT_SPAWN_RATE` | `Currently unavailable` | No | Placeholder; not configurable through DeadPoly server INI settings. |
-| `SLEEPING` | `Currently unavailable` | No | Placeholder; not configurable through DeadPoly server INI settings. |
-| `DAY_LENGTH` | `Currently unavailable` | No | Placeholder; not configurable through DeadPoly server INI settings. |
-| `DIFFICULTY` | `Currently unavailable` | No | Placeholder; not configurable through DeadPoly server INI settings. |
-| `EGG_VERSION` | `1.0.0` | No | Internal version of this egg. |
+There are no separate helper scripts to upload. Startup is embedded in the egg.
+
+## Upgrade from v1.x
+
+This is a breaking upgrade. Back up `DeadPoly/Saved`, configuration files, and any additional save locations first.
+
+1. Stop the server.
+2. Import or update the v2.0.0 egg.
+3. Assign the new egg to the existing server if a new egg was imported.
+4. Replace the server's saved startup override with the new egg's default startup command. Updating an egg does not necessarily replace an existing override.
+5. Set `AUTO_UPDATE=0`.
+6. Set `DEADPOLY_AUTO_UPDATE=true`, `QUERY_PORT=7778`, and leave `EXTRA_ARGS` empty initially.
+7. Start the server.
+8. Confirm this message appears:
+
+   ```text
+   [startup] DeadPoly egg v2.0.0: launching nested server with filtered log forwarding.
+   ```
+
+9. Confirm Pterodactyl marks the server as running, a player can join, and saves survive a stop/start cycle.
+
+The v2.0.0 startup command does not invoke the old `deadpoly-config.sh`, `deadpoly-update-monitor.sh`, or `deadpoly-start.sh` files. Existing files are not automatically deleted.
+
+## Variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `AUTO_UPDATE` | `0` | Disables the container image's built-in updater. Keep at `0`. |
+| `DEADPOLY_AUTO_UPDATE` | `true` | Runs SteamCMD update and validation for the Windows server files before each start. |
+| `QUERY_PORT` | `7778` | Compatibility launch argument. No listener was observed on this port during testing. |
+| `EXTRA_ARGS` | empty | Optional whitespace-separated extra launch arguments. Shell quoting is not evaluated. |
+| `EGG_VERSION` | `2.0.0` | Egg release label. |
+
+The image's built-in updater may print that updates are disabled. That is expected; `DEADPOLY_AUTO_UPDATE=true` controls the Windows-specific update performed by this egg.
 
 ## Access control
 
-### Finding Trust-menu IDs
+Stop the server before editing configuration. Inspect the shipped template under `DeadPoly/Saved/1 RENAME Config`, if present, and generated files under `DeadPoly/Saved/Config`.
 
-DeadPoly uses the in-game Trust-menu ID, not a SteamID64 or player name.
+This egg does not write server name, player limits, private mode, admin lists, allow lists, or bans. Follow the configuration instructions shipped with your installed DeadPoly build.
+
+DeadPoly uses the in-game Trust-menu ID, not a SteamID64 or player name:
 
 1. Launch DeadPoly.
 2. Open your inventory.
 3. Select **TRUSTS**.
 4. Copy the value shown as **My ID**.
 
-Use that ID for `ADMIN_IDS`, `ALLOWED_IDS`, and `BLACKLIST_IDS`.
+Use that ID for admin, allow-list, and blacklist configuration where applicable. Do not assume comma-separated IDs are accepted; follow the format used by your installed server build.
 
-### Whitelist
+## Startup detection and logging
 
-To make the server private:
+The startup command launches the nested executable through Wine, captures Wine output in `wine-output.log`, and streams selected lines from `DeadPoly/Saved/Logs/DeadPoly.log` to the Pterodactyl console.
 
-1. Set `PRIVATE=True`.
-2. Add permitted Trust-menu IDs to `ALLOWED_IDS`, separated by commas.
-3. Restart the server.
+The console filter shows:
 
-Example:
+- Successful session creation.
+- Unreal Engine errors.
+- The game network listener line.
+- World startup completion.
 
-```text
-ALLOWED_IDS=FRIEND_TRUST_MENU_ID,ANOTHER_FRIEND_TRUST_MENU_ID
-```
+It suppresses high-volume verbose EOS, HTTP, plugin, configuration, and heartbeat messages. Some harmless EOS overlay and social-UI warnings may still appear because a headless dedicated server under Wine has no desktop overlay or signed-in local user.
 
-The egg writes these as quoted entries under `[Allowed]` in `Game.ini`.
-
-### Admins
-
-Add Trust-menu IDs to `ADMIN_IDS`, separated by commas:
+The readiness pattern is:
 
 ```text
-ADMIN_IDS=YOUR_TRUST_MENU_ID,ANOTHER_TRUST_MENU_ID
+Successfully created session
 ```
 
-The egg writes these as quoted entries under `[Admins]` in `Game.ini`.
+This is an online-session indicator, not a guarantee of map readiness or external connectivity. Recheck it after game updates.
 
-### Blacklists
+If the panel remains in the starting state, inspect `wine-output.log` and `DeadPoly/Saved/Logs/DeadPoly.log`, then test connectivity before reinstalling.
 
-DeadPoly supports blacklisting players, but the exact public ban-entry format in `Engine.ini` is not officially documented.
+## Ports and router forwarding
 
-For that reason, `BLACKLIST_IDS` is a manual reference field:
+In the tested setup, the game bound UDP `7777`. No listener was observed on port `7778` or TCP `7777`. Docker publishing TCP and UDP does not prove that the game uses both protocols.
 
-- The egg does not automatically write it into `Engine.ini`.
-- Use the in-game admin ban feature where possible.
-- If manual editing is necessary, inspect existing entries at the bottom of `DeadPoly/Saved/Config/WindowsServer/Engine.ini` and follow their exact format.
+| Purpose | Default | Protocol | Evidence |
+|---|---:|---|---|
+| Game traffic | `7777` | UDP | Bound by the running game process during testing |
+| Query argument | `7778` | Unverified | No listener observed; not a confirmed forwarding requirement |
 
-## Automatic update restarts
+For hosting behind a router, forward external UDP `7777` to UDP `7777` on the Ubuntu node's LAN address. Reserve that address in DHCP. Use the assigned game port instead if changed.
 
-The egg can monitor Steam app `2208380` while the server is running.
+Check Pterodactyl allocations, host/container firewall rules, and any upstream NAT or ISP CGNAT. Docker-published traffic can bypass ordinary UFW incoming rules. Do not disable the firewall, expose the host through DMZ, or forward unexplained Wine ports. Test joining from outside your LAN to validate forwarding.
 
-1. Ensure `AUTO_UPDATE_CHECK=true` (enabled by default).
-2. Set `PANEL_URL` to your panel's base URL, for example `https://panel.example.com`.
-3. Create a Pterodactyl **Client API key** with Control permission for the server.
-4. Put that key into `PTERO_API_KEY`.
-5. Optionally change `UPDATE_CHECK_INTERVAL`; the default is 60 minutes.
+## Backups and shutdown
 
-When Steam reports a new build ID, the egg requests a server restart through the Pterodactyl Client API.
+Back up `DeadPoly/Saved`, configuration, and any additional save locations used by your build.
 
-### Important
-
-The update monitor detects updates and restarts the server; it does not download the update by itself.
-
-To ensure the new files are installed after the restart, use one of these options:
-
-- Set `AUTO_UPDATE=true`, which runs SteamCMD validation/update during every startup.
-- Create a Pterodactyl scheduled task that runs the **Update Server** action before or after restarts.
-
-Otherwise, the server may restart repeatedly whenever Steam reports a new build but the installed files remain unchanged.
-
-## Mods
-
-DeadPoly does not currently have an official server-side mod system or Steam Workshop support. This egg includes a future-proof staging folder:
-
-```text
-mods/
-```
-
-You can manually place future mod files there, or provide a direct ZIP URL:
-
-```text
-MODS_URL=https://example.com/deadpoly-mods.zip
-MODS_AUTO_EXTRACT=true
-```
-
-The egg downloads and extracts the archive into `mods/` during installation. It does not force DeadPoly to load those files, because no official server-side mod-loading path currently exists.
-
-## Configuration
-
-After the first installation, the main configuration file is:
-
-```text
-DeadPoly/Saved/Config/WindowsServer/Game.ini
-```
-
-Example:
-
-```ini
-[Server]
-servername=My DeadPoly Server
-maxplayers=16
-Private=False
-
-[Admins]
-Admin="YOUR_TRUST_MENU_ID"
-
-[Allowed]
-Allow="FRIEND_TRUST_MENU_ID"
-```
-
-Admin and allow-list IDs are the player's in-game Trust-menu ID and must be quoted.
-
-## Ports and firewall
-
-Allocate both ports in Pterodactyl:
-
-| Purpose | Default port | Protocol |
-|---|---:|---|
-| Game traffic | `7777` | UDP |
-| Query/info traffic | `7778` | TCP/UDP |
-
-If the server does not appear in the browser, verify both allocations, check the console for Wine or Unreal Engine errors, and test the query port from outside the server network.
-
-## Backups
-
-Back up this directory regularly:
-
-```text
-DeadPoly/Saved
-```
-
-It contains world/save data and configuration. Avoid force-stopping the server during an active save; DeadPoly documentation warns that closing without confirming a save can cause a rollback.
+The egg sends Ctrl+C on stop. Graceful shutdown and save persistence still require testing. Verify that a save survives a full stop/start cycle before relying on this deployment.
 
 ## Versioning
 
 This egg follows [Semantic Versioning](https://semver.org/):
 
-- **Patch** (`1.0.1`): Bug fixes, documentation updates, or small corrections.
-- **Minor** (`1.1.0`): New backward-compatible variables or features.
-- **Major** (`2.0.0`): Breaking changes, major startup/install changes, or support for a new official mod system.
+- **Patch** (`2.0.1`): Bug fixes, documentation updates, or small corrections.
+- **Minor** (`2.1.0`): New backward-compatible variables or features.
+- **Major** (`3.0.0`): Breaking changes, major startup/install changes, or support for a new official mod system.
 
-The current egg version is shown in the `EGG_VERSION` startup variable and in the egg description.
+## Release information and license
 
-See [CHANGELOG.md](CHANGELOG.md) for release history.
+- See [CHANGELOG.md](CHANGELOG.md) for the complete release history, including v1.0.0 and v2.0.0.
+- See [RELEASE_NOTES.md](RELEASE_NOTES.md) for highlights and upgrade information for the latest release.
+- The current release is v2.0.0.
 
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
-The DeadPoly game, its assets, and Steam-distributed dedicated-server files are not covered by this repository's license and remain subject to their own terms.
+This project is licensed under the [MIT License](LICENSE). The DeadPoly game, its assets, and Steam-distributed dedicated-server files are not covered by this repository's license and remain subject to their own terms.
