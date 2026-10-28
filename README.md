@@ -66,18 +66,18 @@ If you try it on Pterodactyl 1.x, please report back whether installation, start
 
 ### Option 1: Download only the egg file
 
-Install `curl` if it is not already installed:
+Install `curl` and `jq` if they are not already installed:
 
 ```bash
 sudo apt update
-sudo apt install -y curl
+sudo apt install -y curl jq
 ```
 
 Download the egg JSON:
 
 ```bash
 curl -fL -o deadpoly-egg.json \
-  [https://raw.githubusercontent.com/Azzy-tm/deadpoly-pterodactyl-egg/main/deadpoly-egg.json](https://raw.githubusercontent.com/Azzy-tm/deadpoly-pterodactyl-egg/main/deadpoly-egg.json)
+  https://raw.githubusercontent.com/Azzy-tm/deadpoly-pterodactyl-egg/main/deadpoly-egg.json
 ```
 
 Verify that the downloaded file is valid Pterodactyl egg JSON:
@@ -106,7 +106,7 @@ sudo apt install -y git
 Clone the repository:
 
 ```bash
-git clone [https://github.com/Azzy-tm/deadpoly-pterodactyl-egg.git](https://github.com/Azzy-tm/deadpoly-pterodactyl-egg.git)
+git clone https://github.com/Azzy-tm/deadpoly-pterodactyl-egg.git
 cd deadpoly-pterodactyl-egg
 ```
 
@@ -124,11 +124,18 @@ git pull
 
 ### Option 3: Download the latest release
 
+Install `curl` and `jq` if they are not already installed:
+
+```bash
+sudo apt update
+sudo apt install -y curl jq
+```
+
 Download the latest published egg file:
 
 ```bash
 curl -fL -o deadpoly-egg.json \
-  [https://github.com/Azzy-tm/deadpoly-pterodactyl-egg/releases/latest/download/deadpoly-egg.json](https://github.com/Azzy-tm/deadpoly-pterodactyl-egg/releases/latest/download/deadpoly-egg.json)
+  https://github.com/Azzy-tm/deadpoly-pterodactyl-egg/releases/latest/download/deadpoly-egg.json
 ```
 
 Verify that the downloaded file is valid Pterodactyl egg JSON:
