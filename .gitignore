@@ -1,0 +1,29 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local development and temporary files
+*.log
+*.tmp
+*.bak
+*.orig
+*.rej
+
+# Local test files and archives
+test/
+tests/
+*.zip
+*.tar
+*.tar.gz
+*.7z
+
+# Do not ignore the distributable egg archive if you decide to publish one
+!deadpoly-egg.zip

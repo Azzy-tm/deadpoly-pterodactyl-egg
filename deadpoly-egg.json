@@ -1,0 +1,229 @@
+{
+  "_comment": "DeadPoly dedicated server egg for Pterodactyl 2.x - Windows server under Wine, with update monitoring and future-proof mod folder support | Egg version: 1.0.0 | Maintainer: Azzy-tm",
+  "meta": {
+    "version": "PTDL_v2",
+    "update_url": null
+  },
+  "name": "DeadPoly",
+  "author": "Azzy-tm",
+  "description": "DeadPoly Windows dedicated server (Steam app 2208380), installed with SteamCMD and run through Wine. Includes optional update monitoring, automatic restarts, whitelist/blacklist support, and a future-proof mods folder. Egg version: 1.0.0.",
+  "features": null,
+  "docker_images": {
+    "Wine Staging": "ghcr.io/parkervcp/yolks:wine_staging"
+  },
+  "file_denylist": [],
+  "startup": "cd /home/container; if [ \"${AUTO_UPDATE,,}\" = \"true\" ]; then if [ -x /home/container/.steamcmd/steamcmd.sh ]; then /home/container/.steamcmd/steamcmd.sh +force_install_dir /home/container +login anonymous +app_update 2208380 validate +quit; else echo \"[startup] SteamCMD was not found; skipping automatic update.\"; fi; fi; if [ -d \"DeadPoly/Saved/1 RENAME Config\" ] && [ ! -d DeadPoly/Saved/Config ]; then mkdir -p DeadPoly/Saved/Config; cp -a \"DeadPoly/Saved/1 RENAME Config/.\" DeadPoly/Saved/Config/; fi; if [ -f deadpoly-config.sh ]; then bash deadpoly-config.sh; fi; mkdir -p mods; if [ -f deadpoly-update-monitor.sh ] && [ \"${AUTO_UPDATE_CHECK,,}\" = \"true\" ]; then bash deadpoly-update-monitor.sh & fi; if [ -f DeadPolyServer.exe ]; then wine DeadPolyServer.exe -log -nosteam -port={{SERVER_PORT}} -queryport={{QUERY_PORT}} -maxplayers={{MAX_PLAYERS}} {{EXTRA_ARGS}}; else wine DeadPoly/Binaries/Win64/DeadPolyServer.exe -log -nosteam -port={{SERVER_PORT}} -queryport={{QUERY_PORT}} -maxplayers={{MAX_PLAYERS}} {{EXTRA_ARGS}}; fi",
+  "config": {
+    "files": "{}",
+    "startup": "{\r\n \"done\": \"Log file open\"\r\n}",
+    "logs": "{}",
+    "stop": "^C"
+  },
+  "scripts": {
+    "installation": {
+      "script": "#!/bin/bash\n# DeadPoly dedicated-server installation for Pterodactyl\n# Egg version: 1.0.0\n# Maintainer: Azzy-tm\nset -e\n\nmkdir -p /mnt/server\ncd /mnt/server\n\napt-get update\napt-get install -y --no-install-recommends curl ca-certificates lib32gcc-s1 unzip\n\n# Install SteamCMD inside the persistent server directory so the Wine runtime\n# container can use it for startup updates and update monitoring.\nmkdir -p /mnt/server/.steamcmd\nif [ ! -x /mnt/server/.steamcmd/steamcmd.sh ]; then\n    curl -sSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz | tar -xz -C /mnt/server/.steamcmd\nfi\nSTEAMCMD=/mnt/server/.steamcmd/steamcmd.sh\n\nif [ \"${AUTO_UPDATE,,}\" = \"true\" ] || { [ ! -f DeadPolyServer.exe ] && [ ! -f DeadPoly/Binaries/Win64/DeadPolyServer.exe ]; }; then\n    \"$STEAMCMD\" +force_install_dir /mnt/server +login anonymous +app_update 2208380 validate +quit\nfi\n\nif [ -d \"DeadPoly/Saved/1 RENAME Config\" ] && [ ! -d DeadPoly/Saved/Config ]; then\n    mkdir -p DeadPoly/Saved/Config\n    cp -a \"DeadPoly/Saved/1 RENAME Config/.\" DeadPoly/Saved/Config/\nfi\n\nmkdir -p DeadPoly/Saved/Config/WindowsServer\nif [ ! -f DeadPoly/Saved/Config/WindowsServer/Game.ini ]; then\n    cat > DeadPoly/Saved/Config/WindowsServer/Game.ini <<'EOF'\n[Server]\nservername=DeadPoly Server\nmaxplayers=16\nPrivate=False\n\n[Admins]\nAdmin=\"YOUR_TRUST_MENU_ID\"\n\n[Allowed]\nAllow=\"FRIEND_TRUST_MENU_ID\"\nEOF\nfi\n\nmkdir -p /mnt/server/mods\n\nif [ -n \"$MODS_URL\" ] && [ \"${MODS_AUTO_EXTRACT,,}\" = \"true\" ]; then\n    echo \"Downloading DeadPoly mod archive...\"\n    curl -fL \"$MODS_URL\" -o /tmp/deadpoly-mods.zip\n    mkdir -p /tmp/deadpoly-mods\n    unzip -q -o /tmp/deadpoly-mods.zip -d /tmp/deadpoly-mods\n    cp -a /tmp/deadpoly-mods/. /mnt/server/mods/\n    echo \"Mods extracted to /mnt/server/mods.\"\nfi\n\ncat > /mnt/server/deadpoly-config.sh <<'EOF'\n#!/bin/bash\nset -e\nINI=\"DeadPoly/Saved/Config/WindowsServer/Game.ini\"\n[ -f \"$INI\" ] || exit 0\n\nset_kv() {\n    local key=\"$1\" value=\"$2\"\n    if grep -qi \"^${key}=\" \"$INI\"; then\n        sed -i \"s/^${key}=.*/${key}=${value}/I\" \"$INI\"\n    else\n        printf '%s=%s\\n' \"$key\" \"$value\" >> \"$INI\"\n    fi\n}\n\nset_kv servername \"$SERVER_NAME\"\nset_kv maxplayers \"$MAX_PLAYERS\"\nset_kv Private \"$PRIVATE\"\n\nwrite_ids() {\n    local section=\"$1\" key=\"$2\" csv=\"$3\"\n    awk -v section=\"$section\" -v key=\"$key\" -v csv=\"$csv\" '\n        BEGIN { insec=0; wrote=0 }\n        $0 ~ \"^[[:space:]]*\\\\[\" section \"\\\\]\" { insec=1; print; next }\n        /^[[:space:]]*\\[/ { if (insec && !wrote && csv != \"\") { print key \"=\\\"\" csv \"\\\"\"; wrote=1 } insec=0; print; next }\n        { if (insec && $0 ~ \"^[[:space:]]*\" key \"=\") next; print }\n        END { if (insec && !wrote && csv != \"\") print key \"=\\\"\" csv \"\\\"\" }\n    ' \"$INI\" > \"$INI.tmp\" && mv \"$INI.tmp\" \"$INI\"\n}\n\nwrite_ids Admins Admin \"$ADMIN_IDS\"\nwrite_ids Allowed Allow \"$ALLOWED_IDS\"\nEOF\nchmod +x /mnt/server/deadpoly-config.sh\n\ncat > /mnt/server/deadpoly-update-monitor.sh <<'EOF'\n#!/bin/bash\n# Checks Steam for a newer DeadPoly dedicated-server build and restarts via Pterodactyl.\n[ \"${AUTO_UPDATE_CHECK,,}\" = \"true\" ] || exit 0\n[ -n \"$PANEL_URL\" ] || { echo \"[update-monitor] PANEL_URL is not set; automatic update restart disabled.\"; exit 0; }\n[ -n \"$PTERO_API_KEY\" ] || { echo \"[update-monitor] PTERO_API_KEY is not set; automatic update restart disabled.\"; exit 0; }\n[ -n \"$SERVER_UUID\" ] || { echo \"[update-monitor] SERVER_UUID is not available; automatic update restart disabled.\"; exit 0; }\n\nSTEAMCMD=\"/home/container/.steamcmd/steamcmd.sh\"\n[ -x \"$STEAMCMD\" ] || { echo \"[update-monitor] SteamCMD was not found at $STEAMCMD; automatic update checking disabled.\"; exit 0; }\n\nINTERVAL=$(( ${UPDATE_CHECK_INTERVAL:-60} * 60 ))\n\nget_build() {\n    \"$STEAMCMD\" +login anonymous +app_info_update 2208380 +app_info_print 2208380 +quit 2>/dev/null \\\n        | grep -A5 '\"2208380\"' \\\n        | grep -oP '\"buildid\"\\s+\"\\K[0-9]+' \\\n        | head -n1\n}\n\nCURRENT_BUILD=$(get_build || true)\nif [ -z \"$CURRENT_BUILD\" ]; then\n    echo \"[update-monitor] Could not read the current Steam build ID; retrying next cycle.\"\nfi\necho \"[update-monitor] Monitoring DeadPoly app 2208380; current build: ${CURRENT_BUILD:-unknown}\"\n\nwhile true; do\n    sleep \"$INTERVAL\"\n    NEW_BUILD=$(get_build || true)\n\n    if [ -z \"$NEW_BUILD\" ]; then\n        echo \"[update-monitor] Update check failed; will retry.\"\n        continue\n    fi\n\n    if [ -z \"$CURRENT_BUILD\" ]; then\n        CURRENT_BUILD=\"$NEW_BUILD\"\n        echo \"[update-monitor] Initialized known build as $CURRENT_BUILD\"\n        continue\n    fi\n\n    if [ \"$NEW_BUILD\" != \"$CURRENT_BUILD\" ]; then\n        echo \"[update-monitor] Update detected: $CURRENT_BUILD -> $NEW_BUILD\"\n        echo \"[update-monitor] Requesting Pterodactyl server restart.\"\n\n        HTTP_CODE=$(curl -sS -o /tmp/ptero-restart-response -w '%{http_code}' \\\n            -X POST \\\n            -H \"Authorization: Bearer $PTERO_API_KEY\" \\\n            -H \"Content-Type: application/json\" \\\n            -H \"Accept: application/json\" \\\n            --data '{\"signal\":\"restart\"}' \\\n            \"${PANEL_URL%/}/api/client/servers/$SERVER_UUID/power\" || true)\n\n        echo \"[update-monitor] Pterodactyl API response: HTTP $HTTP_CODE\"\n        if [ \"$HTTP_CODE\" = \"204\" ]; then\n            echo \"[update-monitor] Restart requested successfully.\"\n        else\n            echo \"[update-monitor] Restart request failed. Check PANEL_URL, API key permissions, and server identifier.\"\n        fi\n        exit 0\n    else\n        echo \"[update-monitor] No update found; installed build $CURRENT_BUILD is current.\"\n    fi\ndone\nEOF\nchmod +x /mnt/server/deadpoly-update-monitor.sh\n\necho \"DeadPoly installation complete.\"\n",
+      "container": "ghcr.io/parkervcp/installers:debian",
+      "entrypoint": "bash"
+    }
+  },
+  "variables": [
+    {
+      "name": "Server Name",
+      "description": "Name shown in the server browser. Avoid using / or & in the name.",
+      "env_variable": "SERVER_NAME",
+      "default_value": "DeadPoly Server",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|max:64"
+    },
+    {
+      "name": "Max Players",
+      "description": "Maximum simultaneous players.",
+      "env_variable": "MAX_PLAYERS",
+      "default_value": "16",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|numeric|between:1,100"
+    },
+    {
+      "name": "Query Port",
+      "description": "Query/info port. Allocate this as a secondary port in Pterodactyl.",
+      "env_variable": "QUERY_PORT",
+      "default_value": "7778",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|numeric|between:1024,65535"
+    },
+    {
+      "name": "Private Server",
+      "description": "Restrict joining to IDs in the allow list. True or False.",
+      "env_variable": "PRIVATE",
+      "default_value": "False",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|in:True,False"
+    },
+    {
+      "name": "Admin IDs",
+      "description": "Comma-separated Trust-menu IDs with admin access.",
+      "env_variable": "ADMIN_IDS",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:1024"
+    },
+    {
+      "name": "Allowed IDs",
+      "description": "Comma-separated Trust-menu IDs allowed to join a private server.",
+      "env_variable": "ALLOWED_IDS",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:2048"
+    },
+    {
+      "name": "Blacklist IDs",
+      "description": "Comma-separated Trust-menu IDs to blacklist. DeadPoly supports blacklisting through its dedicated-server configuration, but the exact Engine.ini ban format is not officially documented; use the in-game admin ban feature where possible or edit Engine.ini manually.",
+      "env_variable": "BLACKLIST_IDS",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:2048"
+    },
+    {
+      "name": "Automatic Updates",
+      "description": "Run SteamCMD validation/update on every start. True or False.",
+      "env_variable": "AUTO_UPDATE",
+      "default_value": "true",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|in:true,false,True,False"
+    },
+    {
+      "name": "Extra Arguments",
+      "description": "Optional extra DeadPolyServer.exe launch arguments.",
+      "env_variable": "EXTRA_ARGS",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:512"
+    },
+    {
+      "name": "Update Check",
+      "description": "Check Steam for DeadPoly server updates while running. True or False. Keep AUTO_UPDATE=true, or create a panel scheduled task that runs the Update Server action before/after restarts. Otherwise, the server will restart repeatedly whenever Steam reports a new build.",
+      "env_variable": "AUTO_UPDATE_CHECK",
+      "default_value": "true",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|in:true,false,True,False"
+    },
+    {
+      "name": "Update Check Interval",
+      "description": "Minutes between Steam update checks. Default is 60.",
+      "env_variable": "UPDATE_CHECK_INTERVAL",
+      "default_value": "60",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|numeric|between:5,1440"
+    },
+    {
+      "name": "Panel URL",
+      "description": "Base URL of this Pterodactyl panel, used for automatic restarts. Example: https://panel.example.com",
+      "env_variable": "PANEL_URL",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:512"
+    },
+    {
+      "name": "Pterodactyl API Key",
+      "description": "Client API key with Control permission for this server. Required only for automatic update restarts.",
+      "env_variable": "PTERO_API_KEY",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:512"
+    },
+    {
+      "name": "Mods ZIP URL",
+      "description": "Optional direct URL to a .zip containing server mod files. Extracted into the mods/ folder during installation. Leave empty if not using mods.",
+      "env_variable": "MODS_URL",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:512"
+    },
+    {
+      "name": "Extract Mods",
+      "description": "Extract the Mods ZIP URL into mods/ during installation. True or False.",
+      "env_variable": "MODS_AUTO_EXTRACT",
+      "default_value": "false",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|in:true,false,True,False"
+    },
+    {
+      "name": "Steam Workshop Mods",
+      "description": "Currently unavailable: DeadPoly does not currently support server-side Steam Workshop mods.",
+      "env_variable": "STEAM_WORKSHOP_MODS",
+      "default_value": "Currently unavailable",
+      "user_viewable": true,
+      "user_editable": false,
+      "rules": "nullable|string|max:64"
+    },
+    {
+      "name": "Zombie Spawn Rate",
+      "description": "Currently unavailable: zombie spawn rate is not configurable through DeadPoly's dedicated-server INI settings.",
+      "env_variable": "ZOMBIE_SPAWN_RATE",
+      "default_value": "Currently unavailable",
+      "user_viewable": true,
+      "user_editable": false,
+      "rules": "nullable|string|max:64"
+    },
+    {
+      "name": "Loot Spawn Rate",
+      "description": "Currently unavailable: loot/item respawn rate is not configurable through DeadPoly's dedicated-server INI settings.",
+      "env_variable": "LOOT_SPAWN_RATE",
+      "default_value": "Currently unavailable",
+      "user_viewable": true,
+      "user_editable": false,
+      "rules": "nullable|string|max:64"
+    },
+    {
+      "name": "Sleeping",
+      "description": "Currently unavailable: sleeping is not configurable through DeadPoly's dedicated-server INI settings.",
+      "env_variable": "SLEEPING",
+      "default_value": "Currently unavailable",
+      "user_viewable": true,
+      "user_editable": false,
+      "rules": "nullable|string|max:64"
+    },
+    {
+      "name": "Day Length",
+      "description": "Currently unavailable: day length is not configurable through DeadPoly's dedicated-server INI settings.",
+      "env_variable": "DAY_LENGTH",
+      "default_value": "Currently unavailable",
+      "user_viewable": true,
+      "user_editable": false,
+      "rules": "nullable|string|max:64"
+    },
+    {
+      "name": "Difficulty",
+      "description": "Currently unavailable: difficulty is not configurable through DeadPoly's dedicated-server INI settings.",
+      "env_variable": "DIFFICULTY",
+      "default_value": "Currently unavailable",
+      "user_viewable": true,
+      "user_editable": false,
+      "rules": "nullable|string|max:64"
+    },
+    {
+      "name": "Egg Version",
+      "description": "Internal version of this DeadPoly Pterodactyl egg. Do not edit.",
+      "env_variable": "EGG_VERSION",
+      "default_value": "1.0.0",
+      "user_viewable": true,
+      "user_editable": false,
+      "rules": "required|string|max:32"
+    }
+  ]
+}
