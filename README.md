@@ -62,6 +62,89 @@ If you try it on Pterodactyl 1.x, please report back whether installation, start
 8. After the first installation completes, stop the server and review `DeadPoly/Saved/Config/WindowsServer/Game.ini`.
 9. Set your admin and allow-list IDs, then start the server again.
 
+## Download on Linux / Ubuntu
+
+### Option 1: Download only the egg file
+
+Install `curl` if it is not already installed:
+
+```bash
+sudo apt update
+sudo apt install -y curl
+```
+
+Download the egg JSON:
+
+```bash
+curl -fL -o deadpoly-egg.json \
+  [https://raw.githubusercontent.com/Azzy-tm/deadpoly-pterodactyl-egg/main/deadpoly-egg.json](https://raw.githubusercontent.com/Azzy-tm/deadpoly-pterodactyl-egg/main/deadpoly-egg.json)
+```
+
+Verify that the downloaded file is valid Pterodactyl egg JSON:
+
+```bash
+jq -e '.meta.version == "PTDL_v2"' deadpoly-egg.json
+```
+
+If the command prints:
+
+```text
+true
+```
+
+the file downloaded correctly. You can then upload `deadpoly-egg.json` through **Admin Area → Nests → Add Egg → Import Egg**.
+
+### Option 2: Clone the full repository
+
+Install Git if it is not already installed:
+
+```bash
+sudo apt update
+sudo apt install -y git
+```
+
+Clone the repository:
+
+```bash
+git clone [https://github.com/Azzy-tm/deadpoly-pterodactyl-egg.git](https://github.com/Azzy-tm/deadpoly-pterodactyl-egg.git)
+cd deadpoly-pterodactyl-egg
+```
+
+The egg file is located at:
+
+```text
+deadpoly-egg.json
+```
+
+To get future updates later, run:
+
+```bash
+git pull
+```
+
+### Option 3: Download the latest release
+
+Download the latest published egg file:
+
+```bash
+curl -fL -o deadpoly-egg.json \
+  [https://github.com/Azzy-tm/deadpoly-pterodactyl-egg/releases/latest/download/deadpoly-egg.json](https://github.com/Azzy-tm/deadpoly-pterodactyl-egg/releases/latest/download/deadpoly-egg.json)
+```
+
+Verify that the downloaded file is valid Pterodactyl egg JSON:
+
+```bash
+jq -e '.meta.version == "PTDL_v2"' deadpoly-egg.json
+```
+
+If the command prints:
+
+```text
+true
+```
+
+the file downloaded correctly. You can then upload `deadpoly-egg.json` through **Admin Area → Nests → Add Egg → Import Egg**.
+
 ## Startup variables
 
 | Variable | Default | Editable | Description |
