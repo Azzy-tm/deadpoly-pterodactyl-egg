@@ -1,5 +1,11 @@
 # DeadPoly Pterodactyl Egg
 
+![Release](https://img.shields.io/github/v/release/Azzy-tm/deadpoly-pterodactyl-egg?style=flat&label=Release)
+![Downloads](https://img.shields.io/github/downloads/Azzy-tm/deadpoly-pterodactyl-egg/total?style=flat&label=Downloads)
+![License](https://img.shields.io/github/license/Azzy-tm/deadpoly-pterodactyl-egg?style=flat&label=License)
+![Pterodactyl](https://img.shields.io/badge/Pterodactyl-2.x-blue?style=flat)
+![Game](https://img.shields.io/badge/DeadPoly-Wine-red?style=flat)
+
 A Pterodactyl egg for hosting the **DeadPoly** Windows dedicated server through **Wine**.
 
 - **Egg version:** `1.0.0` (Initial release)
